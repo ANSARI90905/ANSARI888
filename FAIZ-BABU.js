@@ -246,4 +246,71 @@ function onBot({ models: botModel }) {
                             logger.loader(global.getText('priyansh', 'loadedPackage', event.config.name));
                         }
                         if (event.config.envConfig) try {
-                            for (
+                            for (const _0x5beea0 in event.config.envConfig) {
+                                if (typeof global.configModule[event.config.name] == 'undefined') global.configModule[event.config.name] = {};
+                                if (typeof global.config[event.config.name] == 'undefined') global.config[event.config.name] = {};
+                                if (typeof global.config[event.config.name][_0x5beea0] !== 'undefined') global.configModule[event.config.name][_0x5beea0] = global.config[event.config.name][_0x5beea0];
+                                else global.configModule[event.config.name][_0x5beea0] = event.config.envConfig[_0x5beea0] || '';
+                                if (typeof global.config[event.config.name][_0x5beea0] == 'undefined') global.config[event.config.name][_0x5beea0] = event.config.envConfig[_0x5beea0] || '';
+                            }
+                            logger.loader(global.getText('priyansh', 'loadedConfig', event.config.name));
+                        } catch (error) {
+                            throw new Error(global.getText('priyansh', 'loadedConfig', event.config.name, JSON.stringify(error)));
+                        }
+                        if (event.onLoad) try {
+                            const eventData = {};
+                            eventData.api = loginApiData, eventData.models = botModel;
+                            event.onLoad(eventData);
+                        } catch (error) {
+                            throw new Error(global.getText('priyansh', 'cantOnload', event.config.name, JSON.stringify(error)), 'error');
+                        }
+                        global.client.events.set(event.config.name, event);
+                        logger.loader(global.getText('priyansh', 'successLoadModule', event.config.name));
+                    } catch (error) {
+                        logger.loader(global.getText('priyansh', 'failLoadModule', event.config.name, error), 'error');
+                    }
+                }
+            }()
+        logger.loader(global.getText('priyansh', 'finishLoadModule', global.client.commands.size, global.client.events.size)) 
+        logger.loader(`Startup Time: ${((Date.now() - global.client.timeStart) / 1000).toFixed()}s`)   
+        logger.loader('===== [ ' + (Date.now() - global.client.timeStart) + 'ms ] =====')
+        writeFileSync(global.client['configPath'], JSON['stringify'](global.config, null, 4), 'utf8') 
+        unlinkSync(global['client']['configPath'] + '.temp');        
+        const listenerData = {};
+        listenerData.api = loginApiData; 
+        listenerData.models = botModel;
+        const listener = require('./includes/listen')(listenerData);
+
+        function listenerCallback(error, message) {
+            if (error) return logger(global.getText('priyansh', 'handleListenError', JSON.stringify(error)), 'error');
+            if (['presence', 'typ', 'read_receipt'].some(data => data == message.type)) return;
+            if (global.config.DeveloperMode == !![]) console.log(message);
+            return listener(message);
+        };
+        global.handleListen = loginApiData.listenMqtt(listenerCallback);
+        try {
+            await checkBan(loginApiData);
+        } catch (error) {
+            return //process.exit(0);
+        };
+        if (!global.checkBan) logger(global.getText('priyansh', 'warningSourceCode'), '[ GLOBAL BAN ]');
+    });
+}
+
+//========= Connecting to Database =========//
+
+(async () => {
+    try {
+        await sequelize.authenticate();
+        const authentication = {};
+        authentication.Sequelize = Sequelize;
+        authentication.sequelize = sequelize;
+        const models = require('./includes/database/model')(authentication);
+        logger(global.getText('priyansh', 'successConnectDatabase'), '[ DATABASE ]');
+        const botData = {};
+        botData.models = models
+        onBot(botData);
+    } catch (error) { logger(global.getText('priyansh', 'successConnectDatabase', JSON.stringify(error)), '[ DATABASE ]'); }
+})();
+
+process.on('unhandledRejection', (err, p) => {});
