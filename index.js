@@ -12,48 +12,57 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// sendFile will go here
-app.get('/', function(req, res) {
-  res.sendFile(path.join(__dirname, '/index.html'));
+// Serve the index.html file
+app.get('/', function (req, res) {
+    res.sendFile(path.join(__dirname, '/index.html'));
 });
 
-app.listen(port);
-
-logger("Opened server site...", "[ Starting ]");
+// Start the server and add error handling
+app.listen(port, () => {
+    logger(`Server is running on port ${port}...`, "[ Starting ]");
+}).on('error', (err) => {
+    if (err.code === 'EACCES') {
+        logger(`Permission denied. Cannot bind to port ${port}.`, "[ Error ]");
+    } else {
+        logger(`Server error: ${err.message}`, "[ Error ]");
+    }
+});
 
 /////////////////////////////////////////////////////////
 //========= Create start bot and make it loop =========//
 /////////////////////////////////////////////////////////
 
-function startBot(message) {
-    (message) ? logger(message, "[ Starting ]") : "";
+// Initialize global restart counter
+global.countRestart = global.countRestart || 0;
 
-    const child = spawn("node", ["--trace-warnings", "--async-stack-traces", "FAIZ-BABU.js"], {
+function startBot(message) {
+    if (message) logger(message, "[ Starting ]");
+
+    const child = spawn("node", ["--trace-warnings", "--async-stack-traces", "ARIF-BABU.js"], {
         cwd: __dirname,
         stdio: "inherit",
         shell: true
     });
 
     child.on("close", (codeExit) => {
-        if (codeExit != 0 || global.countRestart && global.countRestart < 5) {
-            startBot("Restarting...");
+        if (codeExit !== 0 && global.countRestart < 5) {
             global.countRestart += 1;
-            return;
-        } else return;
+            logger(`Bot exited with code ${codeExit}. Restarting... (${global.countRestart}/5)`, "[ Restarting ]");
+            startBot();
+        } else {
+            logger(`Bot stopped after ${global.countRestart} restarts.`, "[ Stopped ]");
+        }
     });
 
-    child.on("error", function (error) {
-        logger("An error occurred: " + JSON.stringify(error), "[ Starting ]");
+    child.on("error", (error) => {
+        logger(`An error occurred: ${JSON.stringify(error)}`, "[ Error ]");
     });
 };
+
 ////////////////////////////////////////////////
 //========= Check update from Github =========//
 ////////////////////////////////////////////////
 
 
-axios.get("https://raw.githubusercontent.com/priyanshu192/bot/main/package.json").then((res) => {
-    logger(res['data']['name'], "[ NAME ]");
-    logger("Version: " + res['data']['version'], "[ VERSION ]");
-    logger(res['data']['description'], "[ DESCRIPTION ]");
-});
+// Start the bot
 startBot();
