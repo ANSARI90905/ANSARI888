@@ -1,12 +1,17 @@
-.replit.backup
+# Node
+node_modules/
+*.log
+
+# Replit
 .replit
+.replit.backup
 .runner
 replit.nix
 .config
-node_modules
-Choru-Mirai
+
+# Temp / Cache
+.env
 config.json.temp
-LICENSE
-CONTRIBUTING.md
-Procfile
-README.md
+
+# Project
+Choru-Mirai/
