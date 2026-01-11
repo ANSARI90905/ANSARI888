@@ -6,54 +6,67 @@ const logger = require("./utils/log");
 //========= Create website for dashboard/uptime =========//
 ///////////////////////////////////////////////////////////
 
-const express = require('express');
-const path = require('path');
+const express = require("express");
+const path = require("path");
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-// sendFile will go here
-app.get('/', function(req, res) {
-  res.sendFile(path.join(__dirname, '/index.html'));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.listen(port);
-
-logger("Opened server site...", "[ Starting ]");
+app.listen(port, () => {
+  logger(`Server running on port ${port}`, "[ START ]");
+});
 
 /////////////////////////////////////////////////////////
-//========= Create start bot and make it loop =========//
+//========= Start bot & auto restart =========//
 /////////////////////////////////////////////////////////
+
+global.countRestart = 0;
 
 function startBot(message) {
-    (message) ? logger(message, "[ Starting ]") : "";
+  if (message) logger(message, "[ BOT ]");
 
-    const child = spawn("node", ["--trace-warnings", "--async-stack-traces", "FAIZ-BABU.js"], {
-        cwd: __dirname,
-        stdio: "inherit",
-        shell: true
-    });
+  const child = spawn(
+    "node",
+    ["--trace-warnings", "--async-stack-traces", "FAIZ-BABU.js"],
+    {
+      cwd: __dirname,
+      stdio: "inherit",
+      shell: true
+    }
+  );
 
-    child.on("close", (codeExit) => {
-        if (codeExit != 0 || global.countRestart && global.countRestart < 5) {
-            startBot("Restarting...");
-            global.countRestart += 1;
-            return;
-        } else return;
-    });
+  child.on("close", (code) => {
+    if (code !== 0 && global.countRestart < 5) {
+      global.countRestart++;
+      logger(`Bot crashed! Restarting (${global.countRestart}/5)`, "[ BOT ]");
+      startBot();
+    } else {
+      logger("Bot stopped.", "[ BOT ]");
+    }
+  });
 
-    child.on("error", function (error) {
-        logger("An error occurred: " + JSON.stringify(error), "[ Starting ]");
-    });
-};
+  child.on("error", (err) => {
+    logger("Spawn error: " + err.message, "[ ERROR ]");
+  });
+}
+
 ////////////////////////////////////////////////
 //========= Check update from Github =========//
 ////////////////////////////////////////////////
 
+axios
+  .get("https://raw.githubusercontent.com/priyanshu192/bot/main/package.json")
+  .then((res) => {
+    logger(res.data.name || "Unknown", "[ NAME ]");
+    logger("Version: " + res.data.version, "[ VERSION ]");
+    logger(res.data.description || "", "[ DESCRIPTION ]");
+  })
+  .catch(() => {
+    logger("Cannot check update (offline)", "[ UPDATE ]");
+  });
 
-axios.get("https://raw.githubusercontent.com/priyanshu192/bot/main/package.json").then((res) => {
-    logger(res['data']['name'], "[ NAME ]");
-    logger("Version: " + res['data']['version'], "[ VERSION ]");
-    logger(res['data']['description'], "[ DESCRIPTION ]");
-});
-startBot();
+startBot("Starting bot...");
